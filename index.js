@@ -1,66 +1,85 @@
 class APIService {
-  constructor (baseUrl) {
+  constructor(baseUrl, el) {
     this.baseUrl = baseUrl
+    this.loadingEl = el
+  }
+
+  setLoading(boolean) {
+    if (boolean) {
+      this.loadingEl.classList.add('active')
+    } else {
+      this.loadingEl.classList.remove('active')
+    }
   }
 
   async fetchData() {
     try {
+      this.setLoading(true)
       const resp = await fetch(this.baseUrl)
       return resp.json()
     } catch (e) {
       console.error('Error while fetch data ', e)
+    } finally {
+      this.setLoading(false)
     }
   }
 
   async updateData(id, body) {
     try {
+      this.setLoading(true)
       await fetch(`${this.baseUrl}/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body
+        body,
       })
     } catch (e) {
       console.error('Error while update data', e)
+    } finally {
+      this.setLoading(false)
     }
   }
-
 
   async deleteData(id) {
     try {
+      this.setLoading(true)
       await fetch(`${this.baseUrl}/${id}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       })
     } catch (e) {
       console.error('Error while delete data', e)
+    } finally {
+      this.setLoading(false)
     }
   }
 
-  async addData (body) {
+  async addData(body) {
     try {
+      this.setLoading(true)
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
-          'Content-type': "text/plain"
+          'Content-type': 'application/json',
         },
-        body
+        body,
       })
       return response.json()
-      
     } catch (e) {
       console.error('Error while add data', e)
+    } finally {
+      this.setLoading(false)
     }
   }
 }
 
 class Table {
-  constructor (tbodySelector, apiService) {
+  constructor(tbodySelector, apiService) {
     this.apiService = apiService
-    this.tbody =  tbodySelector
+    this.tbody = tbodySelector
     this.data = []
     this.modalEdit = null
     this.modalCreate = null
@@ -68,11 +87,11 @@ class Table {
     this.inputRef = null
     this.filterState = {
       value: '',
-      type: ''
+      type: '',
     }
   }
 
-  async init () {
+  async init() {
     await this.loadData()
     this.renderTable()
     this.addTableEventListners()
@@ -83,11 +102,12 @@ class Table {
   }
 
   renderTable() {
-    if (!this.data || !this.tbody) return 
+    if (!this.data || !this.tbody) return
 
     this.createSearchRow()
 
-    if (this.data.length < 1) this.tbody.appendChild = `<td colspan="100%" class="alert">This user was not found</td>` 
+    if (this.data.length < 1)
+      this.tbody.appendChild = `<td colspan="100%" class="alert">This user was not found</td>`
 
     for (const user of this.data) {
       this.tbody.insertAdjacentHTML('beforeend', this.createRow(user))
@@ -97,7 +117,7 @@ class Table {
   createRow(user) {
     return `
       <tr>
-        <td>${ user.id }</td>
+        <td>${user.id}</td>
         ${this.createCell(user.name, user.id, 'name')}
         ${this.createCell(user.surname, user.id, 'surname')}
         ${this.createCell(user.patronym, user.id, 'patronym')}
@@ -107,7 +127,7 @@ class Table {
 
   createCell(value, id, type) {
     return `
-      <td data-id="${id}" class="${type}">${ value }</td>
+      <td data-id="${id}" class="${type}">${value}</td>
       <td id="${id}" data-type="${type}" class="edit">✏️</td>
       <td id="${id}" data-type="${type}" class="delete">🗑️</td>
     `
@@ -119,23 +139,28 @@ class Table {
         <td></td>
       </tr>
     `
-    
+
     const types = ['name', 'surname', 'patronym']
     this.searchRow = this.tbody.querySelector('.search-row')
 
     for (let i = 0; i < types.length; i++) {
       const isActive = this.filterState.type === types[i]
-      this.searchRow.insertAdjacentHTML('beforeend', `
+      this.searchRow.insertAdjacentHTML(
+        'beforeend',
+        `
         <td>
           <div class="search-field">
             <img class="icon" src="./icons/search.svg" alt="search">
-            <input value="${isActive ? this.filterState.value : ""}" data-type="${types[i]}"  type="search">
+            <input value="${
+              isActive ? this.filterState.value : ''
+            }" data-type="${types[i]}"  type="search">
           </div>
         </td>
         <td></td>
         <td></td>
-      `)
-    } 
+      `
+      )
+    }
   }
 
   addTableEventListners() {
@@ -143,7 +168,7 @@ class Table {
       const id = e.target.id
       const type = e.target.getAttribute('data-type')
       const targetCell = this.tbody.querySelector(`.${type}[data-id="${id}"]`)
-  
+
       if (e.target.classList.contains('delete')) {
         await this.handleDelete(id, type, targetCell)
       } else if (e.target.classList.contains('edit')) {
@@ -152,15 +177,17 @@ class Table {
         const input = e.target.nextElementSibling
         this.searchField(input)
       } else if (e.target.classList.contains('add-btn')) {
-        this.createField()
+        this.handleCreate()
       }
     })
   }
-  
-  async handleDelete (id, type, el) {
-    if (el.textContent !== "") {
+
+  async handleDelete(id, type, el) {
+    if (el.textContent !== '') {
       const fields = document.querySelectorAll(`[data-id="${id}"]`)
-      const isEmptyFields = Array.from(fields).filter(field => field.textContent === "").length
+      const isEmptyFields = Array.from(fields).filter(
+        (field) => field.textContent === ''
+      ).length
 
       if (isEmptyFields > 1) {
         if (window.confirm('Are you sure to full remove this item?')) {
@@ -172,24 +199,23 @@ class Table {
     } else {
       return alert('This field already has been cleared')
     }
-      
   }
 
-  async deleteField (id, type, el) {
+  async deleteField(id, type, el) {
     if (window.confirm(`Are you sure to delete the ${type}`)) {
-      const body = JSON.stringify({ [type]: "" })
+      const body = JSON.stringify({ [type]: '' })
       await this.apiService.updateData(id, body)
       el.textContent = ''
     }
   }
 
-  handleEdit (id, type, el) {
+  handleEdit(id, type, el) {
     const value = el.textContent
     if (!this.modalEdit) {
-      this.modalEdit = new Modal({ 
+      this.modalEdit = new ModalEdit({
         nameValue: value,
         textBtn: 'change',
-        title: `Edit ${type}`
+        title: `Edit ${type}`,
       })
     } else {
       this.modalEdit.nameValue = value
@@ -199,14 +225,31 @@ class Table {
 
     this.modalEdit.open()
 
-    const btn = this.modalEdit.modal.querySelector('button')
-    btn.onclick = async () => {
-      const inputValue = this.modalEdit.modal.querySelector('input').value
-      const body = JSON.stringify({ [type]: inputValue })
-      await this.apiService.updateData(id, body)
-      el.textContent = inputValue
-      this.modalEdit.close()
+    const form = this.modalEdit.modalEl.querySelector('form')
+    form.onsubmit = async (e) => {
+      e.preventDefault()
+      const inputValue = this.modalEdit.modalEl.querySelector('input').value
+      if (inputValue === value) {
+        this.modalEdit.close()
+      } else {
+        const body = JSON.stringify({ [type]: inputValue })
+        console.log(body)
+        await this.apiService.updateData(id, body)
+        el.textContent = inputValue
+        this.modalEdit.close()
+      }
     }
+  }
+
+  handleCreate() {
+    if (!this.modalCreate) {
+      this.modalCreate = new ModalCreate({
+        textBtn: 'create',
+        title: 'Create user'
+      })
+    }
+    this.modalCreate.open()
+    this.submitHandler(this.modalCreate)
   }
 
   async removeItem(id) {
@@ -218,29 +261,17 @@ class Table {
   async searchField(el) {
     this.filterState.type = el.dataset.type
     this.filterState.value = el.value
-    const filteredData = this.data.filter(user => user[this.filterState.type].toLowerCase().includes(this.filterState.value.toLowerCase()))
-    
-    if (this.filterState.value.length > 0 ) {
+    const filteredData = this.data.filter((user) => {
+      return user[this.filterState.type].toLowerCase().includes(this.filterState.value.toLowerCase())
+    }
+    )
+
+    if (this.filterState.value.length > 0) {
       this.data = filteredData
     } else {
       await this.loadData()
     }
     this.renderTable()
-  } 
-
-  createField () {
-    if (!this.modalCreate) {
-      this.modalCreate = new CreateModal({
-        title: 'Create user',
-        textBtn: 'create'
-      })
-    } else {
-      this.modalCreate.title = 'Create user'
-      this.modalCreate.textBtn = 'create'
-    }
-
-    this.modalCreate.open()
-    this.submitHandler(this.modalCreate)
   }
 
   getBody (inputs) {
@@ -264,34 +295,47 @@ class Table {
     }
   }
 
+  removeSubmitListener(form) {
+    const newForm = form.cloneNode(true)
+    form.parentNode.replaceChild(newForm, form)
+    return newForm
+  }
+
   submitHandler(obj) {
-    const form = obj.modal.querySelector('form')
-    form.addEventListener('submit', (e) => {
-      e.preventDefault()      
-      const inputs = e.target.querySelectorAll('input')
+    let form = obj.modalEl.querySelector('form')
+    form = this.removeSubmitListener(form)
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const inputs = form.querySelectorAll('input')
       const body = this.getBody(inputs)
-      console.log(body)
+      if (body) {
+        await this.apiService.addData(JSON.stringify(body))
+        await this.loadData()
+        this.renderTable()
+        obj.close()
+      }
     })
   }
 }
 
 class Modal {
-  constructor (obj) {
-    this.nameValue = obj.nameValue
+  constructor(obj) {
     this.textBtn = obj.textBtn || 'submit'
     this.title = obj.title || `Modal`
 
-    this.modal = null
+    this.modalEl = null
 
     this.createModal()
     this.eventListener()
   }
 
   createModal() {
-    this.modal = document.createElement('div')
-    this.modal.classList.add('modal')
-    
-    this.modal.insertAdjacentHTML('beforeend', `
+    this.modalEl = document.createElement('div')
+    this.modalEl.classList.add('modal')
+
+    this.modalEl.insertAdjacentHTML(
+      'beforeend',
+      `
       <div class="modal-content">
         <span class="close">&times;</span>
         <h4>${this.title}</h4>
@@ -300,17 +344,43 @@ class Modal {
           <button class="modal-button" type="submit">${this.textBtn}</button>
         </form>
       </div>
-    `)
+    `
+    )
 
-    document.body.appendChild(this.modal)
+    document.body.appendChild(this.modalEl)
   }
 
   getFields() {
-    return `<input required value="${this.nameValue}" type="text" />`
+    return `<input required type="text" />`
+  }
+
+  eventListener() {
+    this.modalEl.onclick = (e) => {
+      if (!e.target.closest('.modal-content') || e.target.closest('span')) {
+        this.close()
+      }
+    }
+  }
+
+  open() {
+    this.modalEl.classList.add('open')
+  }
+
+  close() {
+    if (this.modalEl) {
+      this.modalEl.classList.remove('open')
+    }
+  }
+}
+
+class ModalEdit extends Modal {
+  constructor(obj) {
+    super(obj)
+    this.nameValue = obj.nameValue
   }
 
   updateModal() {
-    const modalContent = this.modal.querySelector('.modal-content')
+    const modalContent = this.modalEl.querySelector('.modal-content')
     modalContent.querySelector('h4').textContent = this.title
     this.updateFields(modalContent)
   }
@@ -319,29 +389,19 @@ class Modal {
     modalContent.querySelector('input').value = this.nameValue
   }
 
-  eventListener () {
-    this.modal.onclick = e => {
-      if (!e.target.closest('.modal-content') || e.target.closest('span')) {
-        this.close()
-      }
-    }
+  getFields() {
+    return `<input required value="${this.nameValue}" type="text" />`
   }
 
   open() {
     this.updateModal()
-    this.modal.classList.add('open')    
-  }
-
-  close() {
-    if (this.modal) {
-      this.modal.classList.remove('open')
-    }
+    this.modalEl.classList.add('open')
   }
 }
 
-class CreateModal extends Modal {
-  constructor (params) {
-    super(params)
+class ModalCreate extends Modal {
+  constructor(obj) {
+    super(obj)
   }
 
   getFields() {
@@ -360,29 +420,14 @@ class CreateModal extends Modal {
       </label>
     `
   }
-
-  updateFields () {}
 }
 
-const apiService = new APIService('https://a4d8296abac85262.mokky.dev/table')
+const apiService = new APIService(
+  'https://a4d8296abac85262.mokky.dev/table',
+  document.querySelector('.loading')
+)
 const table = new Table(document.querySelector('tbody'), apiService)
 
 table.init()
-  
 
-/* getBody (inputs) {
-  const body = {}
 
-  inputs.forEach(input => {
-    const span = input.previousElementSibling
-    span.classList.remove('active')
-
-    body[input.name] = input.value
-    if (input.value.length < input.min) {
-      span.classList.add('active')
-      return
-    }
-  })
-
-  return body
-} */
